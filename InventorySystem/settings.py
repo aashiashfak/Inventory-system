@@ -76,11 +76,12 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # my apps
     "accounts",
-    'products',
+    "products",
     # thirdparty
     "rest_framework",
     "debug_toolbar",
     "corsheaders",
+    "django_filters",
 ]
 
 MIDDLEWARE = [

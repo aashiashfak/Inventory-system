@@ -4,6 +4,7 @@ from .models import Products, ProductVariant , StockReport
 from .serializers import (
     ProductVarianterializer,
     ProductCreateWithVariantsSerializer,
+    StockReportSerializer
 )
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -11,7 +12,8 @@ from django.db import transaction
 from .utils import restructure_product_creation_data
 from rest_framework.views import APIView
 from rest_framework.exceptions import ValidationError
-
+from django_filters.rest_framework import DjangoFilterBackend
+from .filters import StockReportFilter
 
 class ProductListCreateAPIView(generics.ListCreateAPIView):
     queryset = Products.objects.all()
@@ -82,7 +84,6 @@ class UpdateVariantStockAPIView(APIView):
             return Response({"detail": "Variant not found"}, status=status.HTTP_404_NOT_FOUND)
 
         old_stock = variant.stock
-        
 
         if change_type == "purchase":
             new_stock = old_stock + change_amount
@@ -114,3 +115,14 @@ class UpdateVariantStockAPIView(APIView):
             "old_stock": old_stock,
             "new_stock": new_stock,
         }, status=status.HTTP_200_OK)
+
+
+class StockReportListView(generics.ListAPIView):
+    queryset = StockReport.objects.select_related(
+        "variant__product", "changed_by"
+    ).all()
+    serializer_class = StockReportSerializer
+    # permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = StockReportFilter
+    ordering = ["-timestamp"]

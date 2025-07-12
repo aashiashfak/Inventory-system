@@ -4,6 +4,7 @@ from .views import (
     ProductListCreateAPIView,
     ProductVariantCreateAPIView,
     UpdateVariantStockAPIView,
+    StockReportListView,
 )
 
 urlpatterns = [
@@ -20,4 +21,5 @@ urlpatterns = [
         UpdateVariantStockAPIView.as_view(),
         name="update-variant-stock",
     ),
+    path("varient/stock-reports/", StockReportListView.as_view(), name="stock-report-list"),
 ]
