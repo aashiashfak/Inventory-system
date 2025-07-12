@@ -31,6 +31,10 @@ class Products(models.Model):
         ordering = ("-CreatedDate", "ProductID")
 
 
+    def __str__(self):
+        return self.ProductName
+
+
 class VariantType(models.Model):
     name = models.CharField(max_length=50)
 

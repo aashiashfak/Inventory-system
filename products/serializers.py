@@ -3,25 +3,9 @@
 from rest_framework import serializers
 from .models import Products, ProductVariant, VariantOption , VariantType
 from django.db.models import Sum
+from django.db import transaction
+from rest_framework.exceptions import ValidationError
 
-#  Used for creating products
-class ProductCreateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Products
-        fields = [
-            "ProductID",
-            "ProductCode",
-            "ProductName",
-            "ProductImage",
-            "HSNCode",
-            "TotalStock",
-            "IsFavourite",
-            "Active",
-        ]
-
-    def create(self, validated_data):
-        validated_data["CreatedUser"] = self.context["request"].user
-        return super().create(validated_data)
 
 
 #  Variant Option Serializer
@@ -44,41 +28,9 @@ class ProductVarianterializer(serializers.ModelSerializer):
         model = ProductVariant
         fields = ["id", "sku", "stock", "price", "image", "option_data", "options"]
 
-    def create(self, validated_data):
-        option_data = validated_data.pop("option_data")
-        product = self.context["product"]
 
-        # Create the variant object
-        variant = ProductVariant.objects.create(product=product, **validated_data)
-
-        option_objs = []
-        for item in option_data:
-            variant_type_name = item.get("variant_type")
-            value = item.get("value")
-
-            # Create or retrieve VariantType
-            variant_type, _ = VariantType.objects.get_or_create(name=variant_type_name)
-
-            # Create or retrieve VariantOption
-            option, _ = VariantOption.objects.get_or_create(
-                variant_type=variant_type, value=value
-            )
-
-            option_objs.append(option)
-
-        # Associate options to the variant
-        variant.options.set(option_objs)
-        product.TotalStock = product.variants.aggregate(total=Sum('stock'))['total'] or 0
-        product.save(update_fields=["TotalStock"])
-
-
-        return variant
-
-
-#  Used for Detailed Product data
-class ProductDetailSerializer(serializers.ModelSerializer):
-    variants = ProductVarianterializer(many=True, read_only=True)
-    CreatedUser = serializers.StringRelatedField()
+class ProductCreateWithVariantsSerializer(serializers.ModelSerializer):
+    variants = ProductVarianterializer(many=True, required=True)
 
     class Meta:
         model = Products
@@ -92,7 +44,50 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             "TotalStock",
             "IsFavourite",
             "Active",
-            "CreatedUser",
-            "CreatedDate",
             "variants",
         ]
+
+    def create(self, validated_data):
+        variants_data = validated_data.pop("variants", [])
+        validated_data["CreatedUser"] = self.context["request"].user
+
+        with transaction.atomic():
+            # Create product
+            product = Products.objects.create(**validated_data)
+
+            # Create variants
+            total_stock = 0
+            for variant_data in variants_data:
+                option_data = variant_data.pop("option_data")
+                
+                sku = variant_data.get("sku")
+                
+                if ProductVariant.objects.filter(sku=sku).exists():
+                    raise ValidationError(f"Variant SKU '{sku}' already exists.")
+
+                variant = ProductVariant.objects.create(product=product, **variant_data)
+                
+                
+
+                option_objs = []
+                for item in option_data:
+                    variant_type_name = item.get("variant_type")
+                    value = item.get("value")
+
+                    variant_type, _ = VariantType.objects.get_or_create(
+                        name=variant_type_name
+                    )
+                    option, _ = VariantOption.objects.get_or_create(
+                        variant_type=variant_type, value=value
+                    )
+
+                    option_objs.append(option)
+
+                variant.options.set(option_objs)
+                total_stock += variant.stock or 0
+
+            product.TotalStock = total_stock
+            product.save(update_fields=["TotalStock"])
+
+        return product
+
