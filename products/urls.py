@@ -2,8 +2,8 @@
 from django.urls import path
 from .views import (
     ProductListCreateAPIView,
-    ProductVariantCreateAPIView
-    
+    ProductVariantCreateAPIView,
+    UpdateVariantStockAPIView,
 )
 
 urlpatterns = [
@@ -14,5 +14,10 @@ urlpatterns = [
         "varient-list-create/<uuid:product_id>/",
         ProductVariantCreateAPIView.as_view(),
         name="product-varient-list-create",
+    ),
+    path(
+        "variant/<int:variant_id>/update-stock/",
+        UpdateVariantStockAPIView.as_view(),
+        name="update-variant-stock",
     ),
 ]

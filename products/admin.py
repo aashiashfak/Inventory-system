@@ -34,7 +34,7 @@ class VariantOptionAdmin(admin.ModelAdmin):
 
 @admin.register(ProductVariant)
 class ProductVariantAdmin(admin.ModelAdmin):
-    list_display = ("product", "sku", "stock", "price")
+    list_display = ("id", "product", "sku", "stock", "price")
     search_fields = ("sku", "product__ProductName")
     list_filter = ("product",)
     filter_horizontal = ("options",)
