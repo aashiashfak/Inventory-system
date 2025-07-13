@@ -1,5 +1,3 @@
-# serializers.py
-
 from rest_framework import serializers
 from .models import Products, ProductVariant, VariantOption, VariantType, StockReport
 from django.db.models import Sum
@@ -27,7 +25,7 @@ class ProductVarianterializer(serializers.ModelSerializer):
         model = ProductVariant
         fields = ["id", "sku", "stock", "price", "image", "option_data", "options"]
 
-
+# product with variant serializer
 class ProductCreateWithVariantsSerializer(serializers.ModelSerializer):
     variants = ProductVarianterializer(many=True, required=True)
 
@@ -88,7 +86,7 @@ class ProductCreateWithVariantsSerializer(serializers.ModelSerializer):
 
         return product
 
-
+# stock report serializer with productname , sku and price 
 class StockReportSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(
         source="variant.product.ProductName", read_only=True

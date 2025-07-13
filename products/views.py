@@ -1,10 +1,10 @@
 # views.py
 from rest_framework import generics, status
-from .models import Products, ProductVariant , StockReport
+from .models import Products, ProductVariant, StockReport
 from .serializers import (
     ProductVarianterializer,
     ProductCreateWithVariantsSerializer,
-    StockReportSerializer
+    StockReportSerializer,
 )
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -15,13 +15,20 @@ from rest_framework.exceptions import ValidationError
 from django_filters.rest_framework import DjangoFilterBackend
 from .filters import StockReportFilter
 
+
 class ProductListCreateAPIView(generics.ListCreateAPIView):
+    """
+    API endpoint that allows products to be listed and created.
+    """
+
     queryset = Products.objects.all()
     permission_classes = [IsAuthenticated]
     serializer_class = ProductCreateWithVariantsSerializer
 
-
     def post(self, request, *args, **kwargs):
+        """
+        Create a new product with variants.
+        """
         product_data = restructure_product_creation_data(request.data, request.FILES)
         print("Entered in post method")
         print("Product Data: ", product_data)
@@ -36,14 +43,25 @@ class ProductListCreateAPIView(generics.ListCreateAPIView):
 
 
 class ProductVariantCreateAPIView(generics.ListCreateAPIView):
+    """
+    API endpoint that allows product variants to be listed and created.
+    """
+
     serializer_class = ProductVarianterializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         product_id = self.kwargs.get("product_id")
-        return ProductVariant.objects.filter(product__id=product_id)
+        return (
+            ProductVariant.objects.filter(product__id=product_id)
+            .select_related("product", "product__CreatedUser")
+            .prefetch_related("options__variant_type")
+        )
 
     def post(self, request, *args, **kwargs):
+        """
+        Create a new product variant.
+        """
         print("data", request.data)
         product_id = kwargs.get("product_id")
         try:
@@ -61,6 +79,10 @@ class ProductVariantCreateAPIView(generics.ListCreateAPIView):
 
 
 class UpdateVariantStockAPIView(APIView):
+    """
+    API endpoint that allows to update the stock of a product variant with change_type.
+    """
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
@@ -72,16 +94,20 @@ class UpdateVariantStockAPIView(APIView):
         errors = {}
         if not change_type:
             errors["change_type"] = ["This field is required."]
-        if not change_amount :
+        if not change_amount:
             errors["change_amount"] = ["This field is required."]
 
         if errors:
             raise ValidationError(errors)
 
         try:
-            variant = ProductVariant.objects.select_related("product").get(id=variant_id)
+            variant = ProductVariant.objects.select_related("product").get(
+                id=variant_id
+            )
         except ProductVariant.DoesNotExist:
-            return Response({"detail": "Variant not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Variant not found"}, status=status.HTTP_404_NOT_FOUND
+            )
 
         old_stock = variant.stock
 
@@ -89,7 +115,9 @@ class UpdateVariantStockAPIView(APIView):
             new_stock = old_stock + change_amount
         elif change_type == "sale":
             if change_amount > old_stock:
-                raise ValidationError({"change_amount": "Cannot sell more than current stock"})
+                raise ValidationError(
+                    {"change_amount": "Cannot sell more than current stock"}
+                )
             new_stock = old_stock - change_amount
 
         with transaction.atomic():
@@ -109,20 +137,27 @@ class UpdateVariantStockAPIView(APIView):
                 change_amount=change_amount,
             )
 
-        return Response({
-            "message": "Stock updated successfully",
-            "variant_id": variant.id,
-            "old_stock": old_stock,
-            "new_stock": new_stock,
-        }, status=status.HTTP_200_OK)
+        return Response(
+            {
+                "message": "Stock updated successfully",
+                "variant_id": variant.id,
+                "old_stock": old_stock,
+                "new_stock": new_stock,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class StockReportListView(generics.ListAPIView):
+    """
+    API endpoint to view stock reports.
+    """
+
     queryset = StockReport.objects.select_related(
         "variant__product", "changed_by"
     ).all()
     serializer_class = StockReportSerializer
-    # permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_class = StockReportFilter
     ordering = ["-timestamp"]

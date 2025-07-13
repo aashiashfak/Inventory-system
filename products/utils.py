@@ -15,7 +15,6 @@ def restructure_product_creation_data(data, files):
         "variants": [],
     }
 
-    # ✅ Parse variants JSON string
     variants_json = data.get("variants")
     if variants_json:
         try:
@@ -24,6 +23,6 @@ def restructure_product_creation_data(data, files):
                 variant["image"] = files.get(f"variant_image_{idx}")
                 product_data["variants"].append(variant)
         except json.JSONDecodeError:
-            print("⚠️ Invalid JSON for variants field")
+            print("Invalid JSON for variants field")
 
     return product_data
