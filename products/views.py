@@ -14,7 +14,7 @@ from rest_framework.views import APIView
 from rest_framework.exceptions import ValidationError
 from django_filters.rest_framework import DjangoFilterBackend
 from .filters import StockReportFilter
-
+from .pagination import ProductPagination
 
 class ProductListCreateAPIView(generics.ListCreateAPIView):
     """
@@ -24,6 +24,7 @@ class ProductListCreateAPIView(generics.ListCreateAPIView):
     queryset = Products.objects.all()
     permission_classes = [IsAuthenticated]
     serializer_class = ProductCreateWithVariantsSerializer
+    pagination_class = ProductPagination
 
     def post(self, request, *args, **kwargs):
         """
@@ -157,7 +158,7 @@ class StockReportListView(generics.ListAPIView):
         "variant__product", "changed_by"
     ).all()
     serializer_class = StockReportSerializer
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_class = StockReportFilter
     ordering = ["-timestamp"]
